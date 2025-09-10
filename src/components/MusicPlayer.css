@@ -21,6 +21,26 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.input-label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.file-input-container {
+  display: flex;
+  flex-direction: column;
+}
+
 .file-input {
   background: rgba(255, 255, 255, 0.1);
   border: 2px dashed rgba(255, 255, 255, 0.3);
@@ -50,6 +70,92 @@
 
 .file-input::file-selector-button:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.url-divider {
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  font-weight: 500;
+  position: relative;
+  margin: 0.5rem 0;
+}
+
+.url-divider::before,
+.url-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.url-divider::before {
+  left: 0;
+}
+
+.url-divider::after {
+  right: 0;
+}
+
+.url-input-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.url-input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.url-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  color: white;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.url-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.url-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.url-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.url-submit-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.url-submit-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.url-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .visualizer-container {
@@ -231,5 +337,14 @@
     width: 60px;
     height: 60px;
     font-size: 1.5rem;
+  }
+  
+  .url-input-group {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .url-submit-btn {
+    align-self: stretch;
   }
 }

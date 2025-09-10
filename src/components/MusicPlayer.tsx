@@ -8,6 +8,8 @@ export const MusicPlayer: React.FC = () => {
   const [volume, setVolume] = useState(0.7);
   const [fileName, setFileName] = useState<string>("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string>("https://d1hmbp8rqc9pi0.cloudfront.net/music/barbara-waters.mp3");
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
@@ -59,8 +61,51 @@ export const MusicPlayer: React.FC = () => {
         console.error("Error loading audio file:", error);
       }
     },
-    [initializeAudioContext]
-  );
+     [initializeAudioContext]
+   );
+
+   const loadAudioFromUrl = useCallback(
+     async (url: string) => {
+       if (!url.trim()) return;
+       
+       setIsLoadingUrl(true);
+       initializeAudioContext();
+
+       try {
+         const response = await fetch(url);
+         if (!response.ok) {
+           throw new Error(`Failed to fetch audio: ${response.statusText}`);
+         }
+         
+         const arrayBuffer = await response.arrayBuffer();
+         const audioBuffer = await audioContextRef.current!.decodeAudioData(
+           arrayBuffer
+         );
+
+         audioBufferRef.current = audioBuffer;
+         setDuration(audioBuffer.duration);
+         
+         // Extract filename from URL
+         const urlParts = url.split('/');
+         const filename = urlParts[urlParts.length - 1] || 'Audio from URL';
+         setFileName(filename);
+         
+         setIsLoaded(true);
+         setCurrentTime(0);
+         pauseTimeRef.current = 0;
+
+         if (sourceRef.current) {
+           sourceRef.current.disconnect();
+         }
+       } catch (error) {
+         console.error("Error loading audio from URL:", error);
+         alert("Failed to load audio from URL. Please check the URL and try again.");
+       } finally {
+         setIsLoadingUrl(false);
+       }
+     },
+     [initializeAudioContext]
+   );
 
   const createSource = useCallback(() => {
     if (!audioContextRef.current || !audioBufferRef.current) return null;
@@ -210,6 +255,17 @@ export const MusicPlayer: React.FC = () => {
     }
   };
 
+  const handleUrlSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (audioUrl.trim()) {
+      loadAudioFromUrl(audioUrl.trim());
+    }
+  };
+
+  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setAudioUrl(event.target.value);
+  };
+
   const togglePlayPause = () => {
     if (!isLoaded) return;
 
@@ -224,12 +280,43 @@ export const MusicPlayer: React.FC = () => {
     <div className="music-player">
       <div className="player-header">
         <h2>Web Audio Music Player</h2>
-        <input
-          type="file"
-          accept="audio/*"
-          onChange={handleFileChange}
-          className="file-input"
-        />
+        
+        <div className="input-section">
+          <div className="file-input-container">
+            <label htmlFor="file-input" className="input-label">Upload Audio File:</label>
+            <input
+              id="file-input"
+              type="file"
+              accept="audio/*"
+              onChange={handleFileChange}
+              className="file-input"
+            />
+          </div>
+          
+          <div className="url-divider">OR</div>
+          
+          <form onSubmit={handleUrlSubmit} className="url-input-container">
+            <label htmlFor="url-input" className="input-label">Load from URL:</label>
+            <div className="url-input-group">
+              <input
+                id="url-input"
+                type="url"
+                value={audioUrl}
+                onChange={handleUrlChange}
+                placeholder="https://example.com/audio.mp3"
+                className="url-input"
+                disabled={isLoadingUrl}
+              />
+              <button
+                type="submit"
+                className="url-submit-btn"
+                disabled={isLoadingUrl || !audioUrl.trim()}
+              >
+                {isLoadingUrl ? "Loading..." : "Load"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
       <div className="visualizer-container">

@@ -7,6 +7,10 @@ export function VideoTest() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [cameras, setCameras] = useState<Array<{ deviceId: string; label: string; groupId: string }>>([])
   const [selectedCameraId, setSelectedCameraId] = useState<string>('')
+  const [supportedConstraints, setSupportedConstraints] = useState<MediaTrackSupportedConstraints | null>(null)
+  const [trackCapabilities, setTrackCapabilities] = useState<MediaTrackCapabilities | null>(null)
+  const [trackConstraints, setTrackConstraints] = useState<MediaTrackConstraints | null>(null)
+  const [trackSettings, setTrackSettings] = useState<MediaTrackSettings | null>(null)
 
   const startCamera = async (cameraId?: string) => {
     try {
@@ -67,6 +71,39 @@ export function VideoTest() {
     }
   }
 
+  const refreshTrackInfo = useCallback(() => {
+    try {
+      const videoTrack = stream?.getVideoTracks()[0]
+      if (!videoTrack) {
+        setTrackCapabilities(null)
+        setTrackConstraints(null)
+        setTrackSettings(null)
+        return
+      }
+
+      const anyTrack = videoTrack as unknown as { getCapabilities?: () => MediaTrackCapabilities }
+      if (typeof anyTrack.getCapabilities === 'function') {
+        setTrackCapabilities(anyTrack.getCapabilities())
+      } else {
+        setTrackCapabilities(null)
+      }
+
+      if (typeof videoTrack.getConstraints === 'function') {
+        setTrackConstraints(videoTrack.getConstraints())
+      } else {
+        setTrackConstraints(null)
+      }
+
+      if (typeof videoTrack.getSettings === 'function') {
+        setTrackSettings(videoTrack.getSettings())
+      } else {
+        setTrackSettings(null)
+      }
+    } catch (err) {
+      console.error('Error refreshing track info:', err)
+    }
+  }, [stream])
+
   const stopCamera = () => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop())
@@ -109,6 +146,14 @@ export function VideoTest() {
   useEffect(() => {
     enumerateCameras()
   }, [enumerateCameras])
+
+  useEffect(() => {
+    setSupportedConstraints(navigator.mediaDevices.getSupportedConstraints())
+  }, [])
+
+  useEffect(() => {
+    refreshTrackInfo()
+  }, [stream, refreshTrackInfo])
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -194,6 +239,44 @@ export function VideoTest() {
                 This page tests camera access using the WebRTC getUserMedia API. 
                 Make sure to allow camera permissions when prompted.
               </p>
+            </div>
+
+            <div className="w-full mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-800">Constraints & Capabilities</h2>
+                <button
+                  onClick={refreshTrackInfo}
+                  className="bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium py-1.5 px-3 rounded-md transition-colors"
+                >
+                  Refresh info
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-700 mb-2">Supported Constraints</h3>
+                  <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
+                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(supportedConstraints, null, 2)}</pre>
+                  </div>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-700 mb-2">Track Capabilities</h3>
+                  <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
+                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(trackCapabilities, null, 2)}</pre>
+                  </div>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-700 mb-2">Track Settings</h3>
+                  <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
+                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(trackSettings, null, 2)}</pre>
+                  </div>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-700 mb-2">Applied Constraints</h3>
+                  <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
+                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(trackConstraints, null, 2)}</pre>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

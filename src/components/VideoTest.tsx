@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+type ResizeMode = 'none' | 'crop-and-scale'
+
 export function VideoTest() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
@@ -11,6 +13,7 @@ export function VideoTest() {
   const [trackCapabilities, setTrackCapabilities] = useState<MediaTrackCapabilities | null>(null)
   const [trackConstraints, setTrackConstraints] = useState<MediaTrackConstraints | null>(null)
   const [trackSettings, setTrackSettings] = useState<MediaTrackSettings | null>(null)
+  const [constraintForm, setConstraintForm] = useState<{ width: string; height: string; aspectRatio: string; resizeMode: string }>({ width: '', height: '', aspectRatio: '', resizeMode: '' })
 
   const startCamera = async (cameraId?: string) => {
     try {
@@ -135,6 +138,43 @@ export function VideoTest() {
     }
   }
 
+  const applyCustomConstraints = useCallback(async () => {
+    try {
+      const videoTrack = stream?.getVideoTracks()[0]
+      if (!videoTrack) return
+
+      const constraints: MediaTrackConstraints & { resizeMode?: ResizeMode } = {}
+      if (constraintForm.width.trim() !== '') {
+        const value = Number(constraintForm.width)
+        if (!Number.isNaN(value) && value > 0) constraints.width = { ideal: value }
+      }
+      if (constraintForm.height.trim() !== '') {
+        const value = Number(constraintForm.height)
+        if (!Number.isNaN(value) && value > 0) constraints.height = { ideal: value }
+      }
+      if (constraintForm.aspectRatio.trim() !== '') {
+        const value = Number(constraintForm.aspectRatio)
+        if (!Number.isNaN(value) && value > 0) constraints.aspectRatio = { ideal: value }
+      }
+      if (constraintForm.resizeMode.trim() !== '') {
+        constraints.resizeMode = constraintForm.resizeMode as ResizeMode
+      }
+
+      if (Object.keys(constraints).length === 0) return
+
+      await videoTrack.applyConstraints(constraints)
+      refreshTrackInfo()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to apply constraints'
+      setError(message)
+      console.error('applyConstraints error:', err)
+    }
+  }, [constraintForm, stream, refreshTrackInfo])
+
+  const resetConstraintForm = () => {
+    setConstraintForm({ width: '', height: '', aspectRatio: '', resizeMode: '' })
+  }
+
   useEffect(() => {
     return () => {
       if (stream) {
@@ -239,6 +279,84 @@ export function VideoTest() {
                 This page tests camera access using the WebRTC getUserMedia API. 
                 Make sure to allow camera permissions when prompted.
               </p>
+            </div>
+
+            <div className="w-full mt-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-3">Custom Constraints</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Width (px)</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder={trackCapabilities?.width ? `${trackCapabilities.width.min} - ${trackCapabilities.width.max}` : 'e.g. 1920'}
+                    value={constraintForm.width}
+                    onChange={(e) => setConstraintForm(f => ({ ...f, width: e.target.value }))}
+                    disabled={!isStreaming}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Height (px)</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder={trackCapabilities?.height ? `${trackCapabilities.height.min} - ${trackCapabilities.height.max}` : 'e.g. 1080'}
+                    value={constraintForm.height}
+                    onChange={(e) => setConstraintForm(f => ({ ...f, height: e.target.value }))}
+                    disabled={!isStreaming}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Aspect ratio (w/h)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    placeholder={trackCapabilities?.aspectRatio ? `${trackCapabilities.aspectRatio.min} - ${trackCapabilities.aspectRatio.max}` : 'e.g. 1.7778'}
+                    value={constraintForm.aspectRatio}
+                    onChange={(e) => setConstraintForm(f => ({ ...f, aspectRatio: e.target.value }))}
+                    disabled={!isStreaming}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Resize mode</label>
+                  <select
+                    value={constraintForm.resizeMode}
+                    onChange={(e) => setConstraintForm(f => ({ ...f, resizeMode: e.target.value }))}
+                    disabled={!isStreaming}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                  >
+                    <option value="">(leave unchanged)</option>
+                    {(trackCapabilities as unknown as { resizeMode?: ResizeMode[] } | null)?.resizeMode?.map(mode => (
+                      <option key={mode} value={mode}>{mode}</option>
+                    ))}
+                    {!((trackCapabilities as unknown as { resizeMode?: ResizeMode[] } | null)?.resizeMode) && (
+                      <>
+                        <option value="none">none</option>
+                        <option value="crop-and-scale">crop-and-scale</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={applyCustomConstraints}
+                  disabled={!isStreaming}
+                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                >
+                  Apply
+                </button>
+                <button
+                  onClick={resetConstraintForm}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                >
+                  Reset fields
+                </button>
+              </div>
             </div>
 
             <div className="w-full mt-6">

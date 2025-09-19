@@ -1,207 +1,232 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from "react";
 
-type ResizeMode = 'none' | 'crop-and-scale'
+type ResizeMode = "none" | "crop-and-scale";
 
 export function VideoTest() {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [stream, setStream] = useState<MediaStream | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isStreaming, setIsStreaming] = useState(false)
-  const [cameras, setCameras] = useState<Array<{ deviceId: string; label: string; groupId: string }>>([])
-  const [selectedCameraId, setSelectedCameraId] = useState<string>('')
-  const [supportedConstraints, setSupportedConstraints] = useState<MediaTrackSupportedConstraints | null>(null)
-  const [trackCapabilities, setTrackCapabilities] = useState<MediaTrackCapabilities | null>(null)
-  const [trackConstraints, setTrackConstraints] = useState<MediaTrackConstraints | null>(null)
-  const [trackSettings, setTrackSettings] = useState<MediaTrackSettings | null>(null)
-  const [constraintForm, setConstraintForm] = useState<{ width: string; height: string; aspectRatio: string; resizeMode: string }>({ width: '', height: '', aspectRatio: '', resizeMode: '' })
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [cameras, setCameras] = useState<
+    Array<{ deviceId: string; label: string; groupId: string }>
+  >([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
+  const [supportedConstraints, setSupportedConstraints] =
+    useState<MediaTrackSupportedConstraints | null>(null);
+  const [trackCapabilities, setTrackCapabilities] =
+    useState<MediaTrackCapabilities | null>(null);
+  const [trackConstraints, setTrackConstraints] =
+    useState<MediaTrackConstraints | null>(null);
+  const [trackSettings, setTrackSettings] = useState<MediaTrackSettings | null>(
+    null
+  );
+  const [constraintForm, setConstraintForm] = useState<{
+    width: string;
+    height: string;
+    aspectRatio: string;
+    resizeMode: string;
+  }>({ width: "", height: "", aspectRatio: "", resizeMode: "" });
 
   const startCamera = async (cameraId?: string) => {
     try {
-      setError(null)
+      setError(null);
       if (stream) {
-        stream.getTracks().forEach(track => track.stop())
+        stream.getTracks().forEach((track) => track.stop());
       }
 
       const constraints: MediaStreamConstraints = {
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          ...(cameraId ? { deviceId: { exact: cameraId } } : { facingMode: 'user' })
+          ...(cameraId
+            ? { deviceId: { exact: cameraId } }
+            : { facingMode: "user" }),
         },
-        audio: false
+        audio: false,
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(
+        constraints
+      );
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
       }
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-      }
-      
-      setStream(mediaStream)
-      setIsStreaming(true)
-      await enumerateCameras()
+      setStream(mediaStream);
+      setIsStreaming(true);
+      await enumerateCameras();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to access camera'
-      setError(errorMessage)
-      console.error('Error accessing camera:', err)
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to access camera";
+      setError(errorMessage);
+      console.error("Error accessing camera:", err);
     }
-  }
+  };
 
   const enumerateCameras = useCallback(async () => {
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices()
+      const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices
-        .filter(device => device.kind === 'videoinput')
+        .filter((device) => device.kind === "videoinput")
         .map((device, index) => ({
           deviceId: device.deviceId,
           label: device.label || `Camera ${index + 1}`,
-          groupId: device.groupId
-        }))
+          groupId: device.groupId,
+        }));
 
-      setCameras(videoDevices)
+      setCameras(videoDevices);
       if (videoDevices.length > 0 && !selectedCameraId) {
-        setSelectedCameraId(videoDevices[0].deviceId)
+        setSelectedCameraId(videoDevices[0].deviceId);
       }
     } catch (err) {
-      console.error('Error enumerating cameras:', err)
+      console.error("Error enumerating cameras:", err);
     }
-  }, [selectedCameraId])
+  }, [selectedCameraId]);
 
   const switchCamera = async (cameraId: string) => {
-    setSelectedCameraId(cameraId)
+    setSelectedCameraId(cameraId);
     if (isStreaming) {
-      await startCamera(cameraId)
+      await startCamera(cameraId);
     }
-  }
+  };
 
   const refreshTrackInfo = useCallback(() => {
     try {
-      const videoTrack = stream?.getVideoTracks()[0]
+      const videoTrack = stream?.getVideoTracks()[0];
       if (!videoTrack) {
-        setTrackCapabilities(null)
-        setTrackConstraints(null)
-        setTrackSettings(null)
-        return
+        setTrackCapabilities(null);
+        setTrackConstraints(null);
+        setTrackSettings(null);
+        return;
       }
 
-      const anyTrack = videoTrack as unknown as { getCapabilities?: () => MediaTrackCapabilities }
-      if (typeof anyTrack.getCapabilities === 'function') {
-        setTrackCapabilities(anyTrack.getCapabilities())
+      const anyTrack = videoTrack as unknown as {
+        getCapabilities?: () => MediaTrackCapabilities;
+      };
+      if (typeof anyTrack.getCapabilities === "function") {
+        setTrackCapabilities(anyTrack.getCapabilities());
       } else {
-        setTrackCapabilities(null)
+        setTrackCapabilities(null);
       }
 
-      if (typeof videoTrack.getConstraints === 'function') {
-        setTrackConstraints(videoTrack.getConstraints())
+      if (typeof videoTrack.getConstraints === "function") {
+        setTrackConstraints(videoTrack.getConstraints());
       } else {
-        setTrackConstraints(null)
+        setTrackConstraints(null);
       }
 
-      if (typeof videoTrack.getSettings === 'function') {
-        setTrackSettings(videoTrack.getSettings())
+      if (typeof videoTrack.getSettings === "function") {
+        setTrackSettings(videoTrack.getSettings());
       } else {
-        setTrackSettings(null)
+        setTrackSettings(null);
       }
     } catch (err) {
-      console.error('Error refreshing track info:', err)
+      console.error("Error refreshing track info:", err);
     }
-  }, [stream])
+  }, [stream]);
 
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop())
-      setStream(null)
-      setIsStreaming(false)
-      
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+      setIsStreaming(false);
+
       if (videoRef.current) {
-        videoRef.current.srcObject = null
+        videoRef.current.srcObject = null;
       }
     }
-  }
+  };
 
   const takeSnapshot = () => {
     if (videoRef.current && isStreaming) {
-      const canvas = document.createElement('canvas')
-      const context = canvas.getContext('2d')
-      
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
       if (context) {
-        canvas.width = videoRef.current.videoWidth
-        canvas.height = videoRef.current.videoHeight
-        context.drawImage(videoRef.current, 0, 0)
-        
-        const imageUrl = canvas.toDataURL('image/png')
-        const link = document.createElement('a')
-        link.download = `snapshot-${Date.now()}.png`
-        link.href = imageUrl
-        link.click()
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        context.drawImage(videoRef.current, 0, 0);
+
+        const imageUrl = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.download = `snapshot-${Date.now()}.png`;
+        link.href = imageUrl;
+        link.click();
       }
     }
-  }
+  };
 
   const applyCustomConstraints = useCallback(async () => {
     try {
-      const videoTrack = stream?.getVideoTracks()[0]
-      if (!videoTrack) return
+      const videoTrack = stream?.getVideoTracks()[0];
+      if (!videoTrack) return;
 
-      const constraints: MediaTrackConstraints & { resizeMode?: ResizeMode } = {}
-      if (constraintForm.width.trim() !== '') {
-        const value = Number(constraintForm.width)
-        if (!Number.isNaN(value) && value > 0) constraints.width = { ideal: value }
+      const constraints: MediaTrackConstraints & { resizeMode?: ResizeMode } =
+        {};
+      if (constraintForm.width.trim() !== "") {
+        const value = Number(constraintForm.width);
+        if (!Number.isNaN(value) && value > 0)
+          constraints.width = { ideal: value };
       }
-      if (constraintForm.height.trim() !== '') {
-        const value = Number(constraintForm.height)
-        if (!Number.isNaN(value) && value > 0) constraints.height = { ideal: value }
+      if (constraintForm.height.trim() !== "") {
+        const value = Number(constraintForm.height);
+        if (!Number.isNaN(value) && value > 0)
+          constraints.height = { ideal: value };
       }
-      if (constraintForm.aspectRatio.trim() !== '') {
-        const value = Number(constraintForm.aspectRatio)
-        if (!Number.isNaN(value) && value > 0) constraints.aspectRatio = { ideal: value }
+      if (constraintForm.aspectRatio.trim() !== "") {
+        const value = Number(constraintForm.aspectRatio);
+        if (!Number.isNaN(value) && value > 0)
+          constraints.aspectRatio = { ideal: value };
       }
-      if (constraintForm.resizeMode.trim() !== '') {
-        constraints.resizeMode = constraintForm.resizeMode as ResizeMode
+      if (constraintForm.resizeMode.trim() !== "") {
+        constraints.resizeMode = constraintForm.resizeMode as ResizeMode;
       }
 
-      if (Object.keys(constraints).length === 0) return
+      if (Object.keys(constraints).length === 0) return;
 
-      await videoTrack.applyConstraints(constraints)
-      refreshTrackInfo()
+      await videoTrack.applyConstraints(constraints);
+      refreshTrackInfo();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to apply constraints'
-      setError(message)
-      console.error('applyConstraints error:', err)
+      const message =
+        err instanceof Error ? err.message : "Failed to apply constraints";
+      setError(message);
+      console.error("applyConstraints error:", err);
     }
-  }, [constraintForm, stream, refreshTrackInfo])
+  }, [constraintForm, stream, refreshTrackInfo]);
 
   const resetConstraintForm = () => {
-    setConstraintForm({ width: '', height: '', aspectRatio: '', resizeMode: '' })
-  }
+    setConstraintForm({
+      width: "",
+      height: "",
+      aspectRatio: "",
+      resizeMode: "",
+    });
+  };
 
   useEffect(() => {
     return () => {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop())
+        stream.getTracks().forEach((track) => track.stop());
       }
-    }
-  }, [stream])
+    };
+  }, [stream]);
 
   useEffect(() => {
-    enumerateCameras()
-  }, [enumerateCameras])
+    enumerateCameras();
+  }, [enumerateCameras]);
 
   useEffect(() => {
-    setSupportedConstraints(navigator.mediaDevices.getSupportedConstraints())
-  }, [])
+    setSupportedConstraints(navigator.mediaDevices.getSupportedConstraints());
+  }, []);
 
   useEffect(() => {
-    refreshTrackInfo()
-  }, [stream, refreshTrackInfo])
+    refreshTrackInfo();
+  }, [stream, refreshTrackInfo]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-          Camera Test
-        </h1>
-        
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex flex-col items-center space-y-6">
             <div className="relative">
@@ -211,7 +236,7 @@ export function VideoTest() {
                 playsInline
                 muted
                 className="rounded-lg shadow-md max-w-full h-auto"
-                style={{ maxHeight: '500px' }}
+                style={{ maxHeight: "300px" }}
               />
               {!isStreaming && (
                 <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center">
@@ -224,7 +249,10 @@ export function VideoTest() {
 
             {cameras.length > 0 && (
               <div className="w-full max-w-md">
-                <label htmlFor="camera-select" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="camera-select"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Select Camera
                 </label>
                 <select
@@ -276,64 +304,116 @@ export function VideoTest() {
 
             <div className="text-sm text-gray-600 text-center max-w-md">
               <p>
-                This page tests camera access using the WebRTC getUserMedia API. 
+                This page tests camera access using the WebRTC getUserMedia API.
                 Make sure to allow camera permissions when prompted.
               </p>
             </div>
 
             <div className="w-full mt-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Custom Constraints</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                Custom Constraints
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Width (px)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Width (px)
+                  </label>
                   <input
                     type="number"
                     inputMode="numeric"
-                    placeholder={trackCapabilities?.width ? `${trackCapabilities.width.min} - ${trackCapabilities.width.max}` : 'e.g. 1920'}
+                    placeholder={
+                      trackCapabilities?.width
+                        ? `${trackCapabilities.width.min} - ${trackCapabilities.width.max}`
+                        : "e.g. 1920"
+                    }
                     value={constraintForm.width}
-                    onChange={(e) => setConstraintForm(f => ({ ...f, width: e.target.value }))}
+                    onChange={(e) =>
+                      setConstraintForm((f) => ({
+                        ...f,
+                        width: e.target.value,
+                      }))
+                    }
                     disabled={!isStreaming}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Height (px)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Height (px)
+                  </label>
                   <input
                     type="number"
                     inputMode="numeric"
-                    placeholder={trackCapabilities?.height ? `${trackCapabilities.height.min} - ${trackCapabilities.height.max}` : 'e.g. 1080'}
+                    placeholder={
+                      trackCapabilities?.height
+                        ? `${trackCapabilities.height.min} - ${trackCapabilities.height.max}`
+                        : "e.g. 1080"
+                    }
                     value={constraintForm.height}
-                    onChange={(e) => setConstraintForm(f => ({ ...f, height: e.target.value }))}
+                    onChange={(e) =>
+                      setConstraintForm((f) => ({
+                        ...f,
+                        height: e.target.value,
+                      }))
+                    }
                     disabled={!isStreaming}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Aspect ratio (w/h)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Aspect ratio (w/h)
+                  </label>
                   <input
                     type="number"
                     step="any"
                     inputMode="decimal"
-                    placeholder={trackCapabilities?.aspectRatio ? `${trackCapabilities.aspectRatio.min} - ${trackCapabilities.aspectRatio.max}` : 'e.g. 1.7778'}
+                    placeholder={
+                      trackCapabilities?.aspectRatio
+                        ? `${trackCapabilities.aspectRatio.min} - ${trackCapabilities.aspectRatio.max}`
+                        : "e.g. 1.7778"
+                    }
                     value={constraintForm.aspectRatio}
-                    onChange={(e) => setConstraintForm(f => ({ ...f, aspectRatio: e.target.value }))}
+                    onChange={(e) =>
+                      setConstraintForm((f) => ({
+                        ...f,
+                        aspectRatio: e.target.value,
+                      }))
+                    }
                     disabled={!isStreaming}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Resize mode</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Resize mode
+                  </label>
                   <select
                     value={constraintForm.resizeMode}
-                    onChange={(e) => setConstraintForm(f => ({ ...f, resizeMode: e.target.value }))}
+                    onChange={(e) =>
+                      setConstraintForm((f) => ({
+                        ...f,
+                        resizeMode: e.target.value,
+                      }))
+                    }
                     disabled={!isStreaming}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   >
                     <option value="">(leave unchanged)</option>
-                    {(trackCapabilities as unknown as { resizeMode?: ResizeMode[] } | null)?.resizeMode?.map(mode => (
-                      <option key={mode} value={mode}>{mode}</option>
+                    {(
+                      trackCapabilities as unknown as {
+                        resizeMode?: ResizeMode[];
+                      } | null
+                    )?.resizeMode?.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {mode}
+                      </option>
                     ))}
-                    {!((trackCapabilities as unknown as { resizeMode?: ResizeMode[] } | null)?.resizeMode) && (
+                    {!(
+                      trackCapabilities as unknown as {
+                        resizeMode?: ResizeMode[];
+                      } | null
+                    )?.resizeMode && (
                       <>
                         <option value="none">none</option>
                         <option value="crop-and-scale">crop-and-scale</option>
@@ -361,7 +441,9 @@ export function VideoTest() {
 
             <div className="w-full mt-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-800">Constraints & Capabilities</h2>
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Constraints & Capabilities
+                </h2>
                 <button
                   onClick={refreshTrackInfo}
                   className="bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium py-1.5 px-3 rounded-md transition-colors"
@@ -371,27 +453,43 @@ export function VideoTest() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-700 mb-2">Supported Constraints</h3>
+                  <h3 className="font-medium text-gray-700 mb-2">
+                    Supported Constraints
+                  </h3>
                   <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
-                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(supportedConstraints, null, 2)}</pre>
+                    <pre className="whitespace-pre-wrap break-words">
+                      {JSON.stringify(supportedConstraints, null, 2)}
+                    </pre>
                   </div>
                 </div>
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-700 mb-2">Track Capabilities</h3>
+                  <h3 className="font-medium text-gray-700 mb-2">
+                    Track Capabilities
+                  </h3>
                   <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
-                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(trackCapabilities, null, 2)}</pre>
+                    <pre className="whitespace-pre-wrap break-words">
+                      {JSON.stringify(trackCapabilities, null, 2)}
+                    </pre>
                   </div>
                 </div>
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-700 mb-2">Track Settings</h3>
+                  <h3 className="font-medium text-gray-700 mb-2">
+                    Track Settings
+                  </h3>
                   <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
-                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(trackSettings, null, 2)}</pre>
+                    <pre className="whitespace-pre-wrap break-words">
+                      {JSON.stringify(trackSettings, null, 2)}
+                    </pre>
                   </div>
                 </div>
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-medium text-gray-700 mb-2">Applied Constraints</h3>
+                  <h3 className="font-medium text-gray-700 mb-2">
+                    Applied Constraints
+                  </h3>
                   <div className="overflow-x-auto text-xs bg-gray-50 rounded-md p-3">
-                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(trackConstraints, null, 2)}</pre>
+                    <pre className="whitespace-pre-wrap break-words">
+                      {JSON.stringify(trackConstraints, null, 2)}
+                    </pre>
                   </div>
                 </div>
               </div>
@@ -400,14 +498,11 @@ export function VideoTest() {
         </div>
 
         <div className="mt-8 text-center">
-          <a
-            href="/"
-            className="text-blue-500 hover:text-blue-600 underline"
-          >
+          <a href="/" className="text-blue-500 hover:text-blue-600 underline">
             ← Back to Home
           </a>
         </div>
       </div>
     </div>
-  )
+  );
 }

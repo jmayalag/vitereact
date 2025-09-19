@@ -1,6 +1,12 @@
+import { Slider } from "@/components/ui/slider";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type ResizeMode = "none" | "crop-and-scale";
+
+type TrackCapabilities = MediaTrackCapabilities & {
+  focusDistance: ULongRange;
+  zoom: ULongRange;
+};
 
 export function VideoTest() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -14,7 +20,7 @@ export function VideoTest() {
   const [supportedConstraints, setSupportedConstraints] =
     useState<MediaTrackSupportedConstraints | null>(null);
   const [trackCapabilities, setTrackCapabilities] =
-    useState<MediaTrackCapabilities | null>(null);
+    useState<TrackCapabilities | null>(null);
   const [trackConstraints, setTrackConstraints] =
     useState<MediaTrackConstraints | null>(null);
   const [trackSettings, setTrackSettings] = useState<MediaTrackSettings | null>(
@@ -25,7 +31,16 @@ export function VideoTest() {
     height: string;
     aspectRatio: string;
     resizeMode: string;
-  }>({ width: "", height: "", aspectRatio: "", resizeMode: "" });
+    zoom: number[];
+    focusDistance: number[];
+  }>({
+    width: "",
+    height: "",
+    aspectRatio: "",
+    resizeMode: "",
+    zoom: [1],
+    focusDistance: [0],
+  });
 
   const startCamera = async (cameraId?: string) => {
     try {
@@ -36,8 +51,8 @@ export function VideoTest() {
 
       const constraints: MediaStreamConstraints = {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { min: 1280 },
+          height: { min: 720 },
           ...(cameraId
             ? { deviceId: { exact: cameraId } }
             : { facingMode: "user" }),
@@ -105,7 +120,7 @@ export function VideoTest() {
         getCapabilities?: () => MediaTrackCapabilities;
       };
       if (typeof anyTrack.getCapabilities === "function") {
-        setTrackCapabilities(anyTrack.getCapabilities());
+        setTrackCapabilities(anyTrack.getCapabilities() as TrackCapabilities);
       } else {
         setTrackCapabilities(null);
       }
@@ -182,6 +197,21 @@ export function VideoTest() {
       if (constraintForm.resizeMode.trim() !== "") {
         constraints.resizeMode = constraintForm.resizeMode as ResizeMode;
       }
+      if (trackCapabilities?.zoom && constraintForm.zoom[0] !== undefined) {
+        (
+          constraints as MediaTrackConstraints & { zoom?: ConstrainDouble }
+        ).zoom = { ideal: constraintForm.zoom[0] };
+      }
+      if (
+        trackCapabilities?.focusDistance &&
+        constraintForm.focusDistance[0] !== undefined
+      ) {
+        (
+          constraints as MediaTrackConstraints & {
+            focusDistance?: ConstrainDouble;
+          }
+        ).focusDistance = { ideal: constraintForm.focusDistance[0] };
+      }
 
       if (Object.keys(constraints).length === 0) return;
 
@@ -193,7 +223,57 @@ export function VideoTest() {
       setError(message);
       console.error("applyConstraints error:", err);
     }
-  }, [constraintForm, stream, refreshTrackInfo]);
+  }, [
+    constraintForm,
+    stream,
+    refreshTrackInfo,
+    trackCapabilities?.zoom,
+    trackCapabilities?.focusDistance,
+  ]);
+
+  const applyZoomConstraint = useCallback(
+    async (zoomValue: number) => {
+      try {
+        const videoTrack = stream?.getVideoTracks()[0];
+        if (!videoTrack || !trackCapabilities?.zoom) return;
+
+        await videoTrack.applyConstraints({
+          zoom: { ideal: zoomValue },
+        } as MediaTrackConstraints & { zoom?: ConstrainDouble });
+        refreshTrackInfo();
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to apply zoom constraint";
+        setError(message);
+        console.error("applyZoomConstraint error:", err);
+      }
+    },
+    [stream, trackCapabilities?.zoom, refreshTrackInfo]
+  );
+
+  const applyFocusConstraint = useCallback(
+    async (focusValue: number) => {
+      try {
+        const videoTrack = stream?.getVideoTracks()[0];
+        if (!videoTrack || !trackCapabilities?.focusDistance) return;
+
+        await videoTrack.applyConstraints({
+          focusDistance: { ideal: focusValue },
+        } as MediaTrackConstraints & { focusDistance?: ConstrainDouble });
+        refreshTrackInfo();
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to apply focus constraint";
+        setError(message);
+        console.error("applyFocusConstraint error:", err);
+      }
+    },
+    [stream, trackCapabilities?.focusDistance, refreshTrackInfo]
+  );
 
   const resetConstraintForm = () => {
     setConstraintForm({
@@ -201,6 +281,10 @@ export function VideoTest() {
       height: "",
       aspectRatio: "",
       resizeMode: "",
+      zoom: trackCapabilities?.zoom ? [trackCapabilities.zoom.min ?? 1] : [1],
+      focusDistance: trackCapabilities?.focusDistance
+        ? [trackCapabilities.focusDistance.min ?? 0]
+        : [0],
     });
   };
 
@@ -236,12 +320,75 @@ export function VideoTest() {
                 playsInline
                 muted
                 className="rounded-lg shadow-md max-w-full h-auto"
-                style={{ maxHeight: "300px" }}
+                style={{ maxHeight: "200px", transform: "scaleX(-1)" }}
               />
               {!isStreaming && (
                 <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center">
                   <div className="text-center text-gray-500">
                     <p>Camera preview will appear here</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="w-full select-none space-y-2">
+              {trackCapabilities?.zoom && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Zoom ({trackCapabilities.zoom.min} -{" "}
+                    {trackCapabilities.zoom.max})
+                  </label>
+                  <div className="space-y-2">
+                    <Slider
+                      value={constraintForm.zoom}
+                      onValueChange={(value) => {
+                        setConstraintForm((f) => ({
+                          ...f,
+                          zoom: value,
+                        }));
+                      }}
+                      onValueCommit={(value) => {
+                        applyZoomConstraint(value[0]);
+                      }}
+                      min={trackCapabilities.zoom.min}
+                      max={trackCapabilities.zoom.max}
+                      step={0.1}
+                      disabled={!isStreaming}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-gray-500 text-center">
+                      Current: {constraintForm.zoom[0]}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {trackCapabilities?.focusDistance && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Focus Distance ({trackCapabilities.focusDistance.min} -{" "}
+                    {trackCapabilities.focusDistance.max})
+                  </label>
+                  <div className="space-y-2">
+                    <Slider
+                      value={constraintForm.focusDistance}
+                      onValueChange={(value) => {
+                        setConstraintForm((f) => ({
+                          ...f,
+                          focusDistance: value,
+                        }));
+                      }}
+                      onValueCommit={(value) => {
+                        applyFocusConstraint(value[0]);
+                      }}
+                      min={trackCapabilities.focusDistance.min}
+                      max={trackCapabilities.focusDistance.max}
+                      step={0.01}
+                      disabled={!isStreaming}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-gray-500 text-center">
+                      Current: {constraintForm.focusDistance[0]}
+                    </div>
                   </div>
                 </div>
               )}
@@ -302,13 +449,6 @@ export function VideoTest() {
               )}
             </div>
 
-            <div className="text-sm text-gray-600 text-center max-w-md">
-              <p>
-                This page tests camera access using the WebRTC getUserMedia API.
-                Make sure to allow camera permissions when prompted.
-              </p>
-            </div>
-
             <div className="w-full mt-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-3">
                 Custom Constraints
@@ -337,6 +477,7 @@ export function VideoTest() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Height (px)

@@ -275,6 +275,28 @@ export function VideoTest() {
     [stream, trackCapabilities?.focusDistance, refreshTrackInfo]
   );
 
+  const setPortraitPreset = () => {
+    setConstraintForm({
+      width: "1080",
+      height: "1920",
+      aspectRatio: (9 / 16).toString(),
+      resizeMode: "",
+      zoom: constraintForm.zoom,
+      focusDistance: constraintForm.focusDistance,
+    });
+  };
+
+  const setLandscapePreset = () => {
+    setConstraintForm({
+      width: "1920",
+      height: "1080",
+      aspectRatio: (16 / 9).toString(),
+      resizeMode: "",
+      zoom: constraintForm.zoom,
+      focusDistance: constraintForm.focusDistance,
+    });
+  };
+
   const resetConstraintForm = () => {
     setConstraintForm({
       width: "",
@@ -319,8 +341,8 @@ export function VideoTest() {
                 autoPlay
                 playsInline
                 muted
-                className="rounded-lg shadow-md max-w-full h-auto"
-                style={{ maxHeight: "200px", transform: "scaleX(-1)" }}
+                className="rounded-lg shadow-md max-w-full h-auto max-h-[400px] md:max-h-[600px]"
+                style={{ transform: "scaleX(-1)" }}
               />
               {!isStreaming && (
                 <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center">
@@ -453,6 +475,33 @@ export function VideoTest() {
               <h2 className="text-lg font-semibold text-gray-800 mb-3">
                 Custom Constraints
               </h2>
+              <div className="mb-4">
+                <h3 className="text-md font-medium text-gray-700 mb-2">
+                  Presets
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={setPortraitPreset}
+                    disabled={!isStreaming}
+                    className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                  >
+                    Portrait (9:16)
+                  </button>
+                  <button
+                    onClick={setLandscapePreset}
+                    disabled={!isStreaming}
+                    className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                  >
+                    Landscape (16:9)
+                  </button>
+                  <button
+                    onClick={resetConstraintForm}
+                    className="bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

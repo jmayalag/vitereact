@@ -693,12 +693,6 @@ export function VideoTest() {
             </div>
           </div>
         </div>
-
-        <div className="mt-8 text-center">
-          <a href="/" className="text-blue-500 hover:text-blue-600 underline">
-            ← Back to Home
-          </a>
-        </div>
       </div>
     </div>
   );

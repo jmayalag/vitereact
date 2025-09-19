@@ -1,5 +1,5 @@
 import { Slider } from "@/components/ui/slider";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type ResizeMode = "none" | "crop-and-scale";
 
@@ -42,6 +42,14 @@ export function VideoTest() {
     focusDistance: [0],
   });
 
+  const orientation = useMemo(() => {
+    if (!trackSettings?.aspectRatio) return "";
+    if (trackSettings.aspectRatio === 1) return "Square";
+    if (trackSettings.aspectRatio < 1 && trackSettings.aspectRatio > 0)
+      return "Portrait";
+    return "Landscape";
+  }, [trackSettings?.aspectRatio]);
+
   const startCamera = async (cameraId?: string) => {
     try {
       setError(null);
@@ -51,8 +59,6 @@ export function VideoTest() {
 
       const constraints: MediaStreamConstraints = {
         video: {
-          width: { min: 1280 },
-          height: { min: 720 },
           ...(cameraId
             ? { deviceId: { exact: cameraId } }
             : { facingMode: "user" }),
@@ -475,6 +481,7 @@ export function VideoTest() {
               <h2 className="text-lg font-semibold text-gray-800 mb-3">
                 Custom Constraints
               </h2>
+              <p>{orientation}</p>
               <div className="mb-4">
                 <h3 className="text-md font-medium text-gray-700 mb-2">
                   Presets
